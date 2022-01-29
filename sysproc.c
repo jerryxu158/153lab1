@@ -16,14 +16,38 @@ sys_fork(void)
 int
 sys_exit(void)
 {
-  exit();
+  int status;
+  if(argint(0, &status) < 0){
+    return -1;
+  }
+  exit(status);
   return 0;  // not reached
 }
 
 int
 sys_wait(void)
 {
-  return wait();
+  int* status;
+  if(argptr(0, (void*) &status, sizeof(status)) < 0){
+    return -1;
+  }
+  return wait(status);
+}
+
+int
+sys_waitpid(void)
+{
+    int childID;
+  int* status;
+  int options = 0;
+  if(argint(0, &childID) < 0){
+    return -1;
+  }
+  if(argptr(1, (void*)&status, sizeof(status)) < 0){
+    return -1;
+  }
+  //options for future ignore for now
+  return waitpid(childID, status, options);
 }
 
 int
@@ -88,4 +112,12 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+int
+sys_add(void)
+{
+  int a = 1;
+  int b = 2020;
+  return a+b;
 }
