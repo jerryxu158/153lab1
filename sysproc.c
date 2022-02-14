@@ -121,3 +121,12 @@ sys_add(void)
   int b = 2020;
   return a+b;
 }
+
+void 
+sys_setprio(void){
+  int prio;
+  if(argint(0, &prio) < 0){
+    return -1;
+  }
+  return setprio(prio);
+}

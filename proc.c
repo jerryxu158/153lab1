@@ -88,6 +88,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->priority = 16;
 
   release(&ptable.lock);
 
@@ -199,6 +200,7 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+  np->priority = curproc->priority;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -394,7 +396,7 @@ waitpid(int Pid, int* status, int options){
 void
 scheduler(void)
 {
-  struct proc *p;
+  struct proc *p, *nextToRun;
   struct cpu *c = mycpu();
   c->proc = 0;
   
@@ -404,7 +406,32 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+    nextToRun = ptable.proc;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->priority < nextToRun->priority){
+        nextToRun = p;
+      }
+    }
+    /*
+    basically only need to implement lowest prio. the other stuff stays saame
+    We also need to change allocproc(), we need to be allowed ot initialize the prio
+    as well as fork(), we need to change start time
+    we will also need to add a few new sys calls.
+    we need to add void set_prior(int prior_lvl). either void or int return, either is fine
+
+    if multiple process have same prio, I get to choose
+
+    prio inversion is something we need to care about. 
+
+    */
+      p = nextToRun;
+      c->proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+
+      swtch(&(c->scheduler), p->context);
+      switchkvm();
+    /*for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
 
@@ -422,6 +449,7 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       c->proc = 0;
     }
+    */
     release(&ptable.lock);
 
   }
@@ -605,3 +633,9 @@ procdump(void)
   }
 }
 
+void
+setprio(int prio){
+  struct proc *curproc = myproc();
+  curproc->priority = prio;
+  sched();
+}
