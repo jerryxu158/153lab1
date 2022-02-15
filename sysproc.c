@@ -122,7 +122,7 @@ sys_add(void)
   return a+b;
 }
 
-void 
+int 
 sys_setprio(void){
   int prio;
   if(argint(0, &prio) < 0){

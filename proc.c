@@ -408,7 +408,7 @@ scheduler(void)
     acquire(&ptable.lock);
     nextToRun = ptable.proc;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->priority < nextToRun->priority){
+      if(p->priority < nextToRun->priority && p->state == RUNNABLE){
         nextToRun = p;
       }
     }
@@ -633,9 +633,12 @@ procdump(void)
   }
 }
 
-void
+int
 setprio(int prio){
   struct proc *curproc = myproc();
+  acquire(&ptable.lock);
   curproc->priority = prio;
+  release(&ptable.lock);
   sched();
+  return 0;
 }
