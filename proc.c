@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include <stdio.h>
 
 struct {
   struct spinlock lock;
@@ -396,7 +397,8 @@ waitpid(int Pid, int* status, int options){
 void
 scheduler(void)
 {
-  struct proc *p, *nextToRun;
+  struct proc *p;
+  int highPrio = 17;
   struct cpu *c = mycpu();
   c->proc = 0;
   
@@ -405,11 +407,22 @@ scheduler(void)
     sti();
 
     // Loop over process table looking for process to run.
+    //[15,13]
     acquire(&ptable.lock);
-    nextToRun = ptable.proc;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->priority < nextToRun->priority && p->state == RUNNABLE){
-        nextToRun = p;
+      if(p->priority < highPrio && p->state == RUNNABLE){
+        highPrio = p->priority;
+      }
+    }
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->priority == highPrio){
+        c->proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+        swtch(&(c->scheduler), p->context);
+        switchkvm();
+        c->proc = 0;
+        break;
       }
     }
     /*
@@ -424,13 +437,7 @@ scheduler(void)
     prio inversion is something we need to care about. 
 
     */
-      p = nextToRun;
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
+    
     /*for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
