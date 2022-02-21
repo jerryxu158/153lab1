@@ -6,7 +6,6 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-#include <stdio.h>
 
 struct {
   struct spinlock lock;
@@ -415,7 +414,7 @@ scheduler(void)
       }
     }
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->priority == highPrio){
+      if(p->priority == highPrio && p->state == RUNNABLE){
         c->proc = p;
         switchuvm(p);
         p->state = RUNNING;
@@ -423,6 +422,14 @@ scheduler(void)
         switchkvm();
         c->proc = 0;
         break;
+      }
+    }
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){//aging of priority
+      if(p->state != RUNNING && p->priority > 0){
+        p->priority--;
+      }
+      else if(p->state == RUNNING){
+        p->priority++;
       }
     }
     /*
@@ -642,10 +649,12 @@ procdump(void)
 
 int
 setprio(int prio){
-  struct proc *curproc = myproc();
+  struct proc *p;
   acquire(&ptable.lock);
-  curproc->priority = prio;
-  release(&ptable.lock);
+  p = myproc();
+  p->priority = prio;
+  p->state = RUNNABLE;
   sched();
+  release(&ptable.lock);
   return 0;
 }

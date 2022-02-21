@@ -184,6 +184,7 @@ UPROGS=\
 	_hello\
 	_lab1_test\
 	_bugs\
+	_lab2_test\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -257,6 +258,7 @@ EXTRA=\
 	hello.c\
 	lab1_test.c\
 	bugs.c\
+	lab2_test.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
 
