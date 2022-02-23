@@ -89,7 +89,8 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->priority = 16;
-
+  p->startTime = ticks;
+  p-> totalRunTime = 0;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -201,6 +202,8 @@ fork(void)
   np->parent = curproc;
   *np->tf = *curproc->tf;
   np->priority = curproc->priority;
+  np->startTime = ticks;
+  np->totalRunTime = 0;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -264,6 +267,9 @@ exit(int exit_status)
   }
 
   // Jump into the scheduler, never to return.
+  curproc->endTime = ticks;
+  cprintf("total num ticks passed: %d\n", curproc->endTime - curproc->startTime);
+  cprintf("run time: %d\n", p->totalRunTime);
   curproc->state = ZOMBIE;
   sched();
   panic("zombie exit");
@@ -421,6 +427,7 @@ scheduler(void)
         swtch(&(c->scheduler), p->context);
         switchkvm();
         c->proc = 0;
+        p->startRunTime = ticks;
         break;
       }
     }
@@ -432,6 +439,7 @@ scheduler(void)
         p->priority++;
       }
     }
+    release(&ptable.lock);
     /*
     basically only need to implement lowest prio. the other stuff stays saame
     We also need to change allocproc(), we need to be allowed ot initialize the prio
@@ -464,7 +472,6 @@ scheduler(void)
       c->proc = 0;
     }
     */
-    release(&ptable.lock);
 
   }
 }
@@ -481,7 +488,6 @@ sched(void)
 {
   int intena;
   struct proc *p = myproc();
-
   if(!holding(&ptable.lock))
     panic("sched ptable.lock");
   if(mycpu()->ncli != 1)
@@ -501,6 +507,7 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   myproc()->state = RUNNABLE;
+  myproc()->totalRunTime = ticks - myproc()->startRunTime;
   sched();
   release(&ptable.lock);
 }
@@ -552,7 +559,7 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
-
+  p->totalRunTime = ticks - p->startRunTime;
   sched();
 
   // Tidy up.
@@ -654,6 +661,7 @@ setprio(int prio){
   p = myproc();
   p->priority = prio;
   p->state = RUNNABLE;
+  p->totalRunTime = ticks - p->startRunTime;
   sched();
   release(&ptable.lock);
   return 0;
