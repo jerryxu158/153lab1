@@ -268,6 +268,7 @@ exit(int exit_status)
 
   // Jump into the scheduler, never to return.
   curproc->endTime = ticks;
+  p->totalRunTime += ticks - p->startRunTime;
   cprintf("total num ticks passed: %d\n", curproc->endTime - curproc->startTime);
   cprintf("run time: %d\n", p->totalRunTime);
   curproc->state = ZOMBIE;
@@ -424,10 +425,10 @@ scheduler(void)
         c->proc = p;
         switchuvm(p);
         p->state = RUNNING;
+        p->startRunTime = ticks;
         swtch(&(c->scheduler), p->context);
         switchkvm();
         c->proc = 0;
-        p->startRunTime = ticks;
         break;
       }
     }
@@ -488,6 +489,7 @@ sched(void)
 {
   int intena;
   struct proc *p = myproc();
+  p->totalRunTime += ticks - p->startRunTime;
   if(!holding(&ptable.lock))
     panic("sched ptable.lock");
   if(mycpu()->ncli != 1)
@@ -507,7 +509,7 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   myproc()->state = RUNNABLE;
-  myproc()->totalRunTime = ticks - myproc()->startRunTime;
+  myproc()->totalRunTime += ticks - myproc()->startRunTime;
   sched();
   release(&ptable.lock);
 }
@@ -559,7 +561,6 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
-  p->totalRunTime = ticks - p->startRunTime;
   sched();
 
   // Tidy up.
@@ -661,7 +662,6 @@ setprio(int prio){
   p = myproc();
   p->priority = prio;
   p->state = RUNNABLE;
-  p->totalRunTime = ticks - p->startRunTime;
   sched();
   release(&ptable.lock);
   return 0;
