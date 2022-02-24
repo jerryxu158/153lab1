@@ -54,8 +54,7 @@ struct proc {
   int priority;                // priority, used in scheduling
   int startTime;               // start and end time, used to calc
   int endTime;                 // turn around time
-  int startRunTime;
-  int totalRunTime;
+  int waitTime;
 };
 
 // Process memory is laid out contiguously, low addresses first:

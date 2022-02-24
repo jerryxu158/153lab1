@@ -90,7 +90,7 @@ found:
   p->pid = nextpid++;
   p->priority = 16;
   p->startTime = ticks;
-  p-> totalRunTime = 0;
+  p-> waitTime = 0;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -203,7 +203,7 @@ fork(void)
   *np->tf = *curproc->tf;
   np->priority = curproc->priority;
   np->startTime = ticks;
-  np->totalRunTime = 0;
+  np->waitTime = 0;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -268,9 +268,8 @@ exit(int exit_status)
 
   // Jump into the scheduler, never to return.
   curproc->endTime = ticks;
-  p->totalRunTime += ticks - p->startRunTime;
   cprintf("total num ticks passed: %d\n", curproc->endTime - curproc->startTime);
-  cprintf("run time: %d\n", p->totalRunTime);
+  cprintf("wait time: %d\n", p->waitTime);
   curproc->state = ZOMBIE;
   sched();
   panic("zombie exit");
@@ -420,12 +419,11 @@ scheduler(void)
         highPrio = p->priority;
       }
     }
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){//find the process to run
       if(p->priority == highPrio && p->state == RUNNABLE){
         c->proc = p;
         switchuvm(p);
         p->state = RUNNING;
-        p->startRunTime = ticks;
         swtch(&(c->scheduler), p->context);
         switchkvm();
         c->proc = 0;
@@ -433,8 +431,9 @@ scheduler(void)
       }
     }
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){//aging of priority
-      if(p->state != RUNNING && p->priority > 0){
+      if(p->state == RUNNABLE && p->priority > 0){
         p->priority--;
+        p->waitTime++;
       }
       else if(p->state == RUNNING){
         p->priority++;
@@ -489,7 +488,6 @@ sched(void)
 {
   int intena;
   struct proc *p = myproc();
-  p->totalRunTime += ticks - p->startRunTime;
   if(!holding(&ptable.lock))
     panic("sched ptable.lock");
   if(mycpu()->ncli != 1)
@@ -509,7 +507,6 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   myproc()->state = RUNNABLE;
-  myproc()->totalRunTime += ticks - myproc()->startRunTime;
   sched();
   release(&ptable.lock);
 }
